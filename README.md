@@ -1,0 +1,1 @@
+Use local pytorch to train instad of using colab which is not easy to debug and write code
