@@ -1,25 +1,57 @@
-import numpy
-import tqdm
+# import argparse
 
 
-class A:
-    def __init__(self) -> None:
-        print("A::init")
+# def train():
+#     print("Training...")
 
 
-class B(A):
-    def __init__(self) -> None:
-        super().__init__()
-        print("B::init")
+# def inference():
+#     print("Inference...")
 
 
-a = A()
-b = B()
-# a = numpy.random.randint(0, 10, size=[4, 5])
-# print(a)
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser(description="Train or perform inference")
+#     parser.add_argument(
+#         "--mode",
+#         action="store_true",
+#         choices=["train", "inference"],
+#         help="Mode: train or inference",
+#     )
+#     args = parser.parse_args()
+
+#     if args.train:
+#         confirmation = input(
+#             "Are you sure you want to perform model training? This will overwrite existing model. (yes/no): "
+#         )
+#         if confirmation.lower() == "yes":
+#             train()
+#         else:
+#             print("Training aborted.")
+#     elif args.mode == "inference":
+#         inference()
+
+import argparse
 
 
-# a1 = a[:, :-1]
-# feature_index_list = list(range(a1.shape[1]))
-# a2 = a[:, feature_index_list]
-# print(f"a1:{a1},\n a2:{a2}")
+def train():
+    print("Training...")
+
+
+def inference():
+    print("Inference...")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train or perform inference")
+    # parser.add_argument("--train", action="store_true", help="Perform model training")
+    args = parser.parse_args()
+
+    confirmation = input(
+        "Are you sure you want to perform model training? This will overwrite existing model. (train/inf): "
+    )
+    if confirmation.lower() == "train":
+        train()
+    elif confirmation.lower() == "inf":
+        inference()
+    else:
+        print("Error op.")
