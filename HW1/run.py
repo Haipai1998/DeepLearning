@@ -10,6 +10,8 @@ config = {
     "covid_train_path": "HW1/covid_train.csv",
     "seed": 1998,
     "batch_size": 256,
+    "learning_rate": 1e-5,
+    "n_epochs": 5000,
 }
 
 
@@ -37,11 +39,17 @@ class COVIDModel(torch.nn.Module):
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(input_dimension, 16),
             torch.nn.ReLU(),
-            torch.nn.Linear(input_dimension, 8),
+            torch.nn.Linear(16, 8),
             torch.nn.ReLU(),
-            torch.nn.Linear(input_dimension, 1),
+            torch.nn.Linear(8, 1),
         )
-    def forward(self,)
+
+    def forward(self, x):
+        # todo: why?
+        x = self.layers(x)
+        x = x.squeeze(1)
+        # print(f"x={x}")
+        return x
 
 
 def SplitTrainAndValidationData():
@@ -72,6 +80,30 @@ def FeatureSelection(train_data, validation_data):
     return train_data[:, :-1], train_res, validation_data[:, :-1], validation_res
 
 
+def trainer(train_loader, validation_loader):
+    # Move model and data(todo, why?) to cuda as first priority, otherwise cpu
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+    model = COVIDModel(train_data.shape[1]).to(device)
+
+    # define loss function
+    loss_func = torch.nn.MSELoss(reduction="mean")
+
+    # SGD, todo: 第一个 参数是指什么？
+    optimizer = torch.optim.SGD(
+        model.parameters(), lr=config["learning_rate"], momentum=0.7
+    )
+    n_epoch = config["n_epochs"]
+
+    # todo：怎么知道train_loader里的数据类型？
+    for x, y in train_loader:
+        print(f"type(x):{type(x)},type(y):{type(y)}")
+    # for epoch in range(n_epoch):
+    #     model.train()
+
+
 # Read Data and feature selection
 train_data, validation_data = SplitTrainAndValidationData()
 print(f"train_data:{train_data.shape},validation_data:{validation_data.shape}")
@@ -95,3 +127,5 @@ train_loader = torch.utils.data.DataLoader(
 validation_loader = torch.utils.data.DataLoader(
     validation_dataset, batch_size=config["batch_size"], shuffle=True, pin_memory=True
 )
+
+trainer(train_loader, validation_loader)
