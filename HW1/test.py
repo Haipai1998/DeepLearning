@@ -1,6 +1,7 @@
 import pandas
 import numpy
 import torch
+import torch.utils
 
 config = {
     "validation_ratio": 0.2,
@@ -9,9 +10,9 @@ config = {
 }
 
 
-def GetRealTrainAndValidationData():
+def SplitTrainAndValidationData():
     origin_data_set = pandas.read_csv(config["covid_train_path"]).values
-    print(numpy.array(origin_data_set))
+    # print(numpy.array(origin_data_set))
     # print(type(pandas.read_csv(config["covid_train_path"])).values)
     tot_data_length = len(origin_data_set)
     train_data_length = int((1 - config["validation_ratio"]) * tot_data_length)
@@ -19,7 +20,7 @@ def GetRealTrainAndValidationData():
     train_data_set, validation_data_set = torch.utils.data.random_split(
         origin_data_set,
         [train_data_length, validation_data_length],
-        generator=torch.Generator().manual_seed(0),
+        generator=torch.Generator().manual_seed(config["seed"]),
     )
     # print(
     #     f"train_data_length:{train_data_length},validation_data_length:{validation_data_length}"
@@ -29,6 +30,18 @@ def GetRealTrainAndValidationData():
     return numpy.array(train_data_set), numpy.array(validation_data_set)
 
 
-train_data, validation_data = GetRealTrainAndValidationData()
+def FeatureSelection(train_data, validation_data):
+    train_res = train_data[:, -1]
+    validation_res = validation_data[:, -1]
+    # print(train_res)
+    # print(validation_res)
+    return train_data[:, :-1], train_res, validation_data[:, :-1], validation_res
+
+
+train_data, validation_data = SplitTrainAndValidationData()
 print(f"train_data:{train_data.shape},validation_data:{validation_data.shape}")
-print(train_data)
+train_data, train_res, validation_data, validation_res = FeatureSelection(
+    train_data, validation_data
+)
+print(f"number of features: {train_data.shape[1]},{validation_data.shape[1]}")
+# torch.utils.datas
