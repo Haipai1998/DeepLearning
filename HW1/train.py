@@ -37,6 +37,7 @@ class COVID19DataSet(torch.utils.data.Dataset):
         if self.res is None:
             return self.feature[index]
         else:
+            # print(f"feature:{self.feature[index]},self.res:{self.res[index]}")
             return self.feature[index], self.res[index]
 
     def __len__(self):
@@ -86,6 +87,7 @@ def SplitTrainAndValidationData():
 
 
 def FeatureSelection(train_data, validation_data):
+    print(f"train_data:{train_data[:, :-1]}")
     return (
         train_data[:, :-1],
         train_data[:, -1],
@@ -220,7 +222,10 @@ def inference():
     print("inference")
     # load test data
     origin_test_data_set = pandas.read_csv(config["covid_test_path"]).values
+    # hack
+    # origin_test_data_set = pandas.read_csv(config["covid_train_path"]).values
     origin_test_data_set = numpy.array(origin_test_data_set)
+    origin_test_data_set = origin_test_data_set[:,:-1]
     print(f"number of features: {origin_test_data_set.shape[1]}")
     test_dataset = COVID19DataSet(origin_test_data_set, None)
     test_loader = torch.utils.data.DataLoader(
@@ -247,6 +252,8 @@ def inference():
     test_res = torch.cat(preds, dim=0).numpy()
     print(len(test_res))
     save_pred(test_res, "HW1/pred.csv")
+    # hack
+    # save_pred(test_res, "HW1/pred_input_train_data.csv")
 
 
 def save_pred(preds, file):
