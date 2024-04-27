@@ -158,7 +158,38 @@ def trainer(dimension, train_loader, validation_loader):
             print("break")
             break
     print("Finish training")
+
+
+    # InputModelForinf_train_data(model,"HW1/use_finished_model_direct_run_train.csv")
+
     return loss_record
+
+def InputModelForinf_train_data(model,save_path):
+    origin_test_data_set = pandas.read_csv(config["covid_train_path"]).values
+    origin_test_data_set = numpy.array(origin_test_data_set)
+    origin_test_data_set = origin_test_data_set[:,:-1]
+    print(f"number of features: {origin_test_data_set.shape[1]}")
+    test_dataset = COVID19DataSet(origin_test_data_set, None)
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset, batch_size=config["batch_size"], shuffle=False, pin_memory=True
+    )
+
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+
+    model.eval()
+    preds = []
+    for x in test_loader:
+        x = x.to(device)
+        with torch.no_grad():
+            pred = model(x)
+            preds.append(pred.detach().cpu())
+    print(f"preds:{len(preds)}")
+    pred_res = torch.cat(preds, dim=0).numpy()
+    print(len(pred_res))
+    save_pred(pred_res, save_path)
 
 
 def plot_learning_curve(loss_record, title=""):
@@ -217,43 +248,50 @@ def try_train():
     loss_record = trainer(train_data.shape[1], train_loader, validation_loader)
     plot_learning_curve(loss_record, title="deep model")
 
-
-def inference():
-    print("inference")
-    # load test data
-    origin_test_data_set = pandas.read_csv(config["covid_test_path"]).values
-    # hack
-    # origin_test_data_set = pandas.read_csv(config["covid_train_path"]).values
-    origin_test_data_set = numpy.array(origin_test_data_set)
-    origin_test_data_set = origin_test_data_set[:,:-1]
-    print(f"number of features: {origin_test_data_set.shape[1]}")
-    test_dataset = COVID19DataSet(origin_test_data_set, None)
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=config["batch_size"], shuffle=True, pin_memory=True
-    )
-    # load model
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
-    model = COVIDModel(origin_test_data_set.shape[1]).to(device)
-    ckpt = torch.load(config["model_save_path"], map_location="cpu")
-    model.load_state_dict(ckpt)
-
-    # inf
+def doInterface(data_loader, device, model, save_path):
     model.eval()
     preds = []
-    for x in test_loader:
+    for x in data_loader:
         x = x.to(device)
         with torch.no_grad():
             pred = model(x)
             preds.append(pred.detach().cpu())
     print(f"preds:{len(preds)}")
-    test_res = torch.cat(preds, dim=0).numpy()
-    print(len(test_res))
-    save_pred(test_res, "HW1/pred.csv")
-    # hack
-    # save_pred(test_res, "HW1/pred_input_train_data.csv")
+    pred_res = torch.cat(preds, dim=0).numpy()
+    print(len(pred_res))
+    save_pred(pred_res, save_path)
+
+def GetTestDataLoader():
+    # hack code below
+    # origin_test_data_set = pandas.read_csv(config["covid_train_path"]).values
+
+    origin_test_data_set = pandas.read_csv(config["covid_test_path"]).values
+    origin_test_data_set = numpy.array(origin_test_data_set)
+    # origin_test_data_set = origin_test_data_set[:,:-1]
+    print(f"number of features: {origin_test_data_set.shape[1]}")
+    test_dataset = COVID19DataSet(origin_test_data_set, None)
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset, batch_size=config["batch_size"], shuffle=False, pin_memory=True
+    )
+    return test_loader,origin_test_data_set.shape[1]
+
+def inference():
+    print("inference")
+    # load test data
+    test_loader,input_dimension = GetTestDataLoader()
+    # load model
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+    model = COVIDModel(input_dimension).to(device)
+    ckpt = torch.load(config["model_save_path"], map_location="cpu")
+    model.load_state_dict(ckpt)
+    # InputModelForinf_train_data(model,"HW1/use_loaded_model_run_train1.csv")
+    # InputModelForinf_train_data(model,"HW1/use_loaded_model_run_train2.csv")
+    doInterface(test_loader, device, model, "HW1/test_data_res.csv")
+    # hack below
+    
 
 
 def save_pred(preds, file):
