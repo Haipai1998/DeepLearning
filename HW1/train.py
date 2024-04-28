@@ -16,7 +16,7 @@ config = {
     "validation_ratio": 0.2,
     "covid_train_path": "HW1/covid_train.csv",
     "covid_test_path": "HW1/covid_test.csv",
-    "seed": 5201314,
+    "seed": 1998,
     "batch_size": 256,
     "learning_rate": 1e-6,
     "n_epochs": 30000,
@@ -52,12 +52,18 @@ class COVIDModel(torch.nn.Module):
             # torch.nn.ReLU(),
             # torch.nn.Linear(64, 16),
             torch.nn.Linear(input_dimension, 64),
+            # torch.nn.BatchNorm1d(64),
+            # torch.nn.Dropout(p=0.2),
             torch.nn.ReLU(),
             torch.nn.Linear(64, 16),
             torch.nn.ReLU(),
             torch.nn.Linear(16, 8),
             torch.nn.ReLU(),
-            torch.nn.Linear(8, 1),
+            torch.nn.Linear(8, 4),
+            torch.nn.ReLU(),
+            torch.nn.Linear(4, 2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(2, 1),
         )
 
     def forward(self, x):
@@ -89,9 +95,9 @@ def SplitTrainAndValidationData():
 def FeatureSelection(train_data, validation_data):
     print(f"train_data:{train_data[:, :-1]}")
     return (
-        train_data[:, :-1],
+        train_data[:, 1:-1],
         train_data[:, -1],
-        validation_data[:, :-1],
+        validation_data[:, 1:-1],
         validation_data[:, -1],
     )
 
@@ -108,8 +114,16 @@ def trainer(dimension, train_loader, validation_loader):
 
     # SGD, todo: 第一个 参数是指什么？
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=config["learning_rate"], momentum=0.9
+        model.parameters(),
+        lr=config["learning_rate"],
+        momentum=0.95,
+        weight_decay=0.001,
     )
+
+    # optimizer = torch.optim.AdamW(
+    #     model.parameters(), lr=config["learning_rate"], weight_decay=0.08
+    # )
+
     n_epoch = config["n_epochs"]
     loss_record = {"train": [], "validation": []}
     min_loss = math.inf
@@ -159,15 +173,15 @@ def trainer(dimension, train_loader, validation_loader):
             break
     print("Finish training")
 
-
     # InputModelForinf_train_data(model,"HW1/use_finished_model_direct_run_train.csv")
 
     return loss_record
 
-def InputModelForinf_train_data(model,save_path):
+
+def InputModelForinf_train_data(model, save_path):
     origin_test_data_set = pandas.read_csv(config["covid_train_path"]).values
     origin_test_data_set = numpy.array(origin_test_data_set)
-    origin_test_data_set = origin_test_data_set[:,:-1]
+    origin_test_data_set = origin_test_data_set[:, :-1]
     print(f"number of features: {origin_test_data_set.shape[1]}")
     test_dataset = COVID19DataSet(origin_test_data_set, None)
     test_loader = torch.utils.data.DataLoader(
@@ -248,6 +262,7 @@ def try_train():
     loss_record = trainer(train_data.shape[1], train_loader, validation_loader)
     plot_learning_curve(loss_record, title="deep model")
 
+
 def doInterface(data_loader, device, model, save_path):
     model.eval()
     preds = []
@@ -261,24 +276,26 @@ def doInterface(data_loader, device, model, save_path):
     print(len(pred_res))
     save_pred(pred_res, save_path)
 
+
 def GetTestDataLoader():
     # hack code below
     # origin_test_data_set = pandas.read_csv(config["covid_train_path"]).values
 
     origin_test_data_set = pandas.read_csv(config["covid_test_path"]).values
     origin_test_data_set = numpy.array(origin_test_data_set)
-    # origin_test_data_set = origin_test_data_set[:,:-1]
+    origin_test_data_set = origin_test_data_set[:, 1:]
     print(f"number of features: {origin_test_data_set.shape[1]}")
     test_dataset = COVID19DataSet(origin_test_data_set, None)
     test_loader = torch.utils.data.DataLoader(
         test_dataset, batch_size=config["batch_size"], shuffle=False, pin_memory=True
     )
-    return test_loader,origin_test_data_set.shape[1]
+    return test_loader, origin_test_data_set.shape[1]
+
 
 def inference():
     print("inference")
     # load test data
-    test_loader,input_dimension = GetTestDataLoader()
+    test_loader, input_dimension = GetTestDataLoader()
     # load model
     if torch.cuda.is_available():
         device = "cuda"
@@ -291,7 +308,6 @@ def inference():
     # InputModelForinf_train_data(model,"HW1/use_loaded_model_run_train2.csv")
     doInterface(test_loader, device, model, "HW1/test_data_res.csv")
     # hack below
-    
 
 
 def save_pred(preds, file):
