@@ -67,7 +67,6 @@ class COVIDModel(torch.nn.Module):
         )
 
     def forward(self, x):
-        # todo: why?
         x = self.layers(x).squeeze(1)
         return x
 
@@ -103,7 +102,6 @@ def FeatureSelection(train_data, validation_data):
 
 
 def trainer(dimension, train_loader, validation_loader):
-    # Move model and data(todo, why?) to cuda as first priority, otherwise cpu
     if torch.cuda.is_available():
         device = "cuda"
     else:
@@ -112,7 +110,6 @@ def trainer(dimension, train_loader, validation_loader):
     # define loss function
     loss_func = torch.nn.MSELoss(reduction="mean")
 
-    # SGD, todo: 第一个 参数是指什么？
     optimizer = torch.optim.SGD(
         model.parameters(),
         lr=config["learning_rate"],
@@ -128,7 +125,7 @@ def trainer(dimension, train_loader, validation_loader):
     loss_record = {"train": [], "validation": []}
     min_loss = math.inf
     bad_loss_cnt = 0
-    # todo：为何这样写直接可以访问到data & lable? 以下一些函数怎么确定输入类型？
+
     for epoch in range(n_epoch):
         # train
         model.train()
@@ -137,11 +134,13 @@ def trainer(dimension, train_loader, validation_loader):
             optimizer.zero_grad()
             x = x.to(device)
             y = y.to(device)
+            # finish forward，计算偏导
             predicted_res = model(x)
-            # 输入类型？
+            # 输入类型: tensor
             loss_res = loss_func(predicted_res, y)
-            # 没有补全提醒？
+            # backpropagation，计算偏导
             loss_res.backward()
+            # 按照参数更新算法(例如gradient descent), 更新参数weights and bias
             optimizer.step()
             # print(f"train-loss:{loss_res.detach().cpu().item()}")
             each_loss_record.append(loss_res.detach().cpu().item())
@@ -246,8 +245,6 @@ def try_train():
     )
 
     # Use DataLodaer help load data to main memory with batching
-    # epoch: input all data to dl netowrk and finish forward and backward calculation
-    # todo: 如何验证数据是正确的内容？
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=config["batch_size"], shuffle=True, pin_memory=True
     )
@@ -321,7 +318,7 @@ def save_pred(preds, file):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train or perform inference")
+    parser = argparse.ArgumentParser(description="Train Or Inference")
     # parser.add_argument("--train", action="store_true", help="Perform model training")
     args = parser.parse_args()
 
