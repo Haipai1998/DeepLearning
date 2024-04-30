@@ -27,18 +27,24 @@ def concat_feat(x, concat_n):
     if concat_n < 2:
         return x
     seq_len, feature_dim = x.size(0), x.size(1)
+    print(x[0])
+    print(x[1])
+    print(x[2])
     x = x.repeat(1, concat_n)
     torch.set_printoptions(threshold=float("inf"), linewidth=100)
-    print(x[0])
+    print("-------------run1")
     x = x.view(seq_len, concat_n, feature_dim).permute(
         1, 0, 2
     )  # concat_n, seq_len, feature_dim
+    # print(x[0])
+    # print("-------------run2")
     mid = concat_n // 2
     for r_idx in range(1, mid + 1):
         x[mid + r_idx, :] = shift(x[mid + r_idx], r_idx)
         x[mid - r_idx, :] = shift(x[mid - r_idx], -r_idx)
-
-    return x.permute(1, 0, 2).view(seq_len, concat_n * feature_dim)
+    x = x.permute(1, 0, 2).view(seq_len, concat_n * feature_dim)
+    print(x[1])
+    return x
 
 
 def preprocess_data(split, feat_dir, phone_path, concat_nframes, train_ratio=0.8):
@@ -87,11 +93,11 @@ def preprocess_data(split, feat_dir, phone_path, concat_nframes, train_ratio=0.8
     for i, fname in tqdm(enumerate(usage_list)):
         feat = load_feat(os.path.join(feat_dir, mode, f"{fname}.pt"))
         cur_len = len(feat)
-        print(f"feat_len:{feat.size()}")
+        # print(f"feat_len:{feat.size()}")
         feat = concat_feat(feat, concat_nframes)
         if mode == "train":
             label = torch.LongTensor(label_dict[fname])
-            print(f"label.size:{len(label)},cur_len:{cur_len},feat_len:{feat.size()}")
+            # print(f"label.size:{len(label)},cur_len:{cur_len},feat_len:{feat.size()}")
             break
 
         X[idx : idx + cur_len, :] = feat
