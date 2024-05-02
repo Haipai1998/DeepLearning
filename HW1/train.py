@@ -66,6 +66,7 @@ class COVIDModel(torch.nn.Module):
             torch.nn.Linear(2, 1),
         )
 
+    # todo,why?
     def forward(self, x):
         x = self.layers(x).squeeze(1)
         return x
