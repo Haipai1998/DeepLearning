@@ -17,7 +17,7 @@ config = {
     "seed": 1998,
     "batch_size": 512,
     "learning_rate": 1e-4,
-    "n_epochs": 20,
+    "n_epochs": 50,
     "train_id_lable_path": "HW2/libriphone/train_labels.txt",
     "model_save_path": "HW2/model.pth",
     "stop_train_count": 400,
@@ -71,6 +71,42 @@ def read_feature_with_path(path):
     return torch.load(path)
 
 
+def get_test_ld(id_path, feature_root_path, concat_num_each_side, sample_feature_num):
+    with open(id_path, "r") as file:
+        content = file.readlines()
+    feature_tensors = []
+    for line in content:
+        file_name = line.strip()
+        file_feature = read_feature_with_path(feature_root_path + file_name + ".pt")
+        sample_num = len(file_feature)
+        for i, one_sample_feature in enumerate(file_feature):
+            # print(one_sample_feature)
+            for j in range(-concat_num_each_side, concat_num_each_side + 1):
+                if j == 0:
+                    continue
+                merge_target_index = i + j
+                # [0,sample_num-1]
+                if merge_target_index < 0 or merge_target_index >= sample_num:
+                    merge_targe_data = torch.zeros(sample_feature_num)
+                else:
+                    merge_targe_data = file_feature[merge_target_index]
+                # print(f"merge_targe_data_type:{type(merge_targe_data)}, torch.dim:{merge_targe_data.size()}")
+                one_sample_feature = torch.cat(
+                    (one_sample_feature, merge_targe_data[0:sample_feature_num])
+                )
+            feature_tensors.append(one_sample_feature.unsqueeze(0))
+    merged_tensors = torch.cat(feature_tensors, 0)
+    ds = LibriphoneDataSet(merged_tensors, None)
+    test_loader = torch.utils.data.DataLoader(
+        ds,
+        batch_size=1,
+        shuffle=False,
+        pin_memory=True,
+        # ds, batch_size=config["batch_size"], shuffle=False, pin_memory=True
+    )
+    return test_loader
+
+
 def get_train_and_val_ld(
     id_lable_path, feature_root_path, concat_num_each_side, sample_feature_num
 ):
@@ -83,6 +119,7 @@ def get_train_and_val_ld(
     for line in content:
         line = line.strip().split(" ")
         file_name = line[0]
+        print(file_name)
         file_feature = read_feature_with_path(feature_root_path + file_name + ".pt")
         sample_num = len(file_feature)
         for i, one_sample_feature in enumerate(file_feature):
@@ -218,6 +255,22 @@ def train_model(
     return loss_record
 
 
+def train():
+    train_loader, validation_loader = get_train_and_val_ld(
+        config["train_id_lable_path"],
+        "HW2/libriphone/feat/train/",
+        config["concat_num_each_side"],
+        config["frame_dimension"],
+    )
+    loss_record = train_model(
+        train_loader,
+        validation_loader,
+        config["concat_num_each_side"],
+        config["frame_dimension"],
+    )
+    plot_learning_curve(loss_record, title="deep model")
+
+
 def plot_learning_curve(loss_record, title=""):
     """Plot learning curve of your DNN (train & validation loss)"""
     total_steps = len(loss_record["train"])
@@ -240,18 +293,63 @@ def plot_learning_curve(loss_record, title=""):
     plt.show()
 
 
+def save_pred(preds, file):
+    """Save predictions to specified file"""
+    print("Saving results to {}".format(file))
+    with open(file, "w", newline="") as fp:
+        writer = csv.writer(fp)
+        writer.writerow(["Id", "Class"])
+        for i, p in enumerate(preds):
+            writer.writerow([i, p])
+
+
+def inference():
+    test_loader = get_test_ld(
+        "HW2/libriphone/test_split.txt",
+        "HW2/libriphone/feat/test/",
+        config["concat_num_each_side"],
+        config["frame_dimension"],
+    )
+    input_dimension = config["frame_dimension"] * (
+        config["concat_num_each_side"] * 2 + 1
+    )
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+    model = LibriphoneModel(input_dimension).to(device)
+    ckpt = torch.load(config["model_save_path"], map_location="cpu")
+    model.load_state_dict(ckpt)
+
+    model.eval()
+    preds = []
+    # todo: 研究model(x)的输出
+    for x in test_loader:
+        x = x.to(device)
+        with torch.no_grad():
+            pred = model(x)
+            # print(pred.size())
+            # print(f"type(pred):{type(pred)}, pred:{pred}")
+            _, test_pred = torch.max(pred, 1)
+            preds.append(int(test_pred.detach().cpu()))
+    # print(f"preds.type:{type(preds)},preds.len:{len(preds)},preds:{preds}")
+    # pred_res = torch.cat(preds, dim=0).numpy()
+    print(len(preds))
+    save_pred(preds, "HW2/pred.csv")
+
+
 if __name__ == "__main__":
 
-    train_loader, validation_loader = get_train_and_val_ld(
-        config["train_id_lable_path"],
-        "HW2/libriphone/feat/train/",
-        config["concat_num_each_side"],
-        config["frame_dimension"],
+    parser = argparse.ArgumentParser(description="Train Or Inference")
+    # parser.add_argument("--train", action="store_true", help="Perform model training")
+    args = parser.parse_args()
+
+    confirmation = input(
+        "Are you sure you want to perform model training? This will overwrite existing model. (train/inf): "
     )
-    loss_record = train_model(
-        train_loader,
-        validation_loader,
-        config["concat_num_each_side"],
-        config["frame_dimension"],
-    )
-    plot_learning_curve(loss_record, title="deep model")
+    if confirmation.lower() == "train":
+        train()
+    elif confirmation.lower() == "inf":
+        inference()
+    else:
+        print("Error op.")
