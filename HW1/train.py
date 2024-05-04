@@ -66,7 +66,7 @@ class COVIDModel(torch.nn.Module):
             torch.nn.Linear(2, 1),
         )
 
-    # todo,why?
+    # [batch_size * 1], remove dim1 by squeeze(1) and dim1==1
     def forward(self, x):
         x = self.layers(x).squeeze(1)
         return x

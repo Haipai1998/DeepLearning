@@ -46,6 +46,7 @@ class LibriphoneModel(torch.nn.Module):
             torch.nn.Linear(64, 41),
         )
 
+    # return [batch_size, 41]
     def forward(self, x):
         return self.layers(x)
 
@@ -95,6 +96,7 @@ def get_test_ld(id_path, feature_root_path, concat_num_each_side, sample_feature
                 one_sample_feature = torch.cat(
                     (one_sample_feature, merge_targe_data[0:sample_feature_num])
                 )
+            # change tensor size from b to 1*b
             feature_tensors.append(one_sample_feature.unsqueeze(0))
     merged_tensors = torch.cat(feature_tensors, 0)
     ds = LibriphoneDataSet(merged_tensors, None)
@@ -322,13 +324,12 @@ def inference():
 
     model.eval()
     preds = []
-    # todo: 研究model(x)的输出
+    # 研究model(x)的输出: [batch_size * model_output_dimension]
     for x in test_loader:
         x = x.to(device)
         with torch.no_grad():
             pred = model(x)
-            # print(pred.size())
-            # print(f"type(pred):{type(pred)}, pred:{pred}")
+            # print(f"pred.size():{pred.size()},type(pred):{type(pred)}, pred:{pred}")
             _, test_pred = torch.max(pred, 1)
 
             preds.append(int(test_pred.detach().cpu()))
