@@ -11,6 +11,7 @@ import argparse
 import csv
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import figure
+import torch.optim.lr_scheduler as lr_scheduler
 
 config = {
     "validation_ratio": 0.2,
@@ -36,9 +37,9 @@ class LibriphoneModel(torch.nn.Module):
     def __init__(self, input_dimension) -> None:
         super().__init__()
         self.layers = torch.nn.Sequential(
-            # torch.nn.BatchNorm1d(64),
-            # torch.nn.Dropout(p=0.2),
             torch.nn.Linear(input_dimension, 128),
+            torch.nn.BatchNorm1d(128),
+            torch.nn.Dropout(p=0.2),
             torch.nn.ReLU(),
             torch.nn.Linear(128, 64),
             torch.nn.ReLU(),
@@ -119,7 +120,6 @@ def get_train_and_val_ld(
     for line in content:
         line = line.strip().split(" ")
         file_name = line[0]
-        print(file_name)
         file_feature = read_feature_with_path(feature_root_path + file_name + ".pt")
         sample_num = len(file_feature)
         for i, one_sample_feature in enumerate(file_feature):
@@ -190,7 +190,10 @@ def train_model(
         momentum=0.95,
         weight_decay=0.001,
     )
-
+    # cos退火
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=8, T_mult=2, eta_min=config["learning_rate"] / 2
+    )
     # optimizer = torch.optim.AdamW(
     #    model.parameters(), lr=config["learning_rate"], weight_decay=0.08
     # )
@@ -208,16 +211,10 @@ def train_model(
             optimizer.zero_grad()
             x = x.to(device)
             y = y.to(device)
-            # print("-------")
-            # print(f"x={x}")
-            # print(f"y={y}")
             # finish forward，计算偏导
             predicted_res = model(x)
-            # print(f"predicted_res={predicted_res}")
             # 输入类型: tensor
             loss_res = loss_func(predicted_res, y)
-            # print(f"loss_res={loss_res}")
-            # print("-------")
             # backpropagation，计算偏导
             loss_res.backward()
             # 按照参数更新算法(例如gradient descent), 更新参数weights and bias
@@ -226,6 +223,8 @@ def train_model(
         loss_record["train"].append(
             sum(each_epoch_loss_record) / len(each_epoch_loss_record)
         )
+        scheduler.step()
+
         # eval
         model.eval()
         each_epoch_loss_record = []
@@ -331,11 +330,12 @@ def inference():
             # print(pred.size())
             # print(f"type(pred):{type(pred)}, pred:{pred}")
             _, test_pred = torch.max(pred, 1)
+
             preds.append(int(test_pred.detach().cpu()))
     # print(f"preds.type:{type(preds)},preds.len:{len(preds)},preds:{preds}")
     # pred_res = torch.cat(preds, dim=0).numpy()
     print(len(preds))
-    save_pred(preds, "HW2/pred.csv")
+    save_pred(preds, "HW2/pred2.csv")
 
 
 if __name__ == "__main__":
