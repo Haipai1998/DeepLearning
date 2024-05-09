@@ -30,19 +30,47 @@ config = {
     "frame_dimension": 39,
 }
 
+
 class ImgClassifierDataSet(torch.utils.data.Dataset):
-    def __init__(self, open_imgs, lables):
-        
-    # def __init__(self, feature, ground_truth):
+    def __init__(self, fpath, img_transformer, mode):
+        self.fpath = fpath
+        self.fnames = os.listdir(fpath)
+        self.img_transformer = img_transformer
+        self.mode = mode
+        print(self.fnames)
 
-    # def __getitem__(self, index):
+    def __len__(self):
+        return len(self.fnames)
 
-    # def __len__(self):
+    def __getitem__(self, index):
+        img = Image.open(os.path.join(self.fpath, self.fnames[index]))
+        # print(f"ImgClassifierDataSet, img.type:{type(img)}")
+        img_tensor = self.img_transformer(img)
+        # print(f"ImgClassifierDataSet, img.type after tsf:{type(img)}")
 
+        if self.mode == "test":
+            return img_tensor
+
+        lable = int(self.fnames[index].split("_")[0])
+
+        return img, lable
 
 
 def get_train_and_val_ld():
-    dir = os.listdir(config["train_data_root_path"])
+    train_img_transformer = transforms.Compose(
+        [
+            # Resize the image into a fixed shape (height = width = 128)
+            transforms.Resize((128, 128)),
+            transforms.RandomGrayscale(0.5),  # 随机灰度化
+            transforms.RandomSolarize(threshold=192.0),
+            transforms.ColorJitter(brightness=0.5, hue=0.5),  # 改变图像的亮度和饱和度
+            transforms.RandomRotation(degrees=(0, 180)),  # 图像随机旋转
+            transforms.ToTensor(),
+        ]
+    )
+    train_ds = ImgClassifierDataSet(
+        config["train_data_root_path"], train_img_transformer
+    )
     # print(f"dir_len:{len(dir)}")
     # Image.open()
 
