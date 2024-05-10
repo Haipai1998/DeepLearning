@@ -22,12 +22,13 @@ import torchvision.transforms as transforms
 config = {
     "train_data_root_path": "HW3/train/",
     "val_data_root_path": "HW3/valid/",
+    "model_save_path": "HW3/model.pth",
     "validation_ratio": 0.2,
     "seed": 1998,
     "batch_size": 512,
     "learning_rate": 1e-4,
-    "n_epochs": 50,
-    "stop_train_count": 400,
+    "n_epochs": 500,
+    "stop_train_count": 100,
     "frame_dimension": 39,
 }
 
@@ -57,27 +58,69 @@ class ImgClassifierDataSet(torch.utils.data.Dataset):
 class ImgClassifierModel(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        # input_dim: [3,128,128]
-        self.layers = torch.nn.Sequential(
-            # [3,128,128]
-            # torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3),
-            # torch.nn.BatchNorm2d(64),
-            # torch.nn.ReLU(),
-            # torch.nn.MaxPool2d(2, 2),
-            # # [64,64,64]
-            # torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3),
-            # torch.nn.BatchNorm2d(128),
-            # torch.nn.ReLU(),
-            # torch.nn.MaxPool2d(2, 2),
-            # #
-            # torch.nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3),
-            # torch.nn.BatchNorm2d(256),
-            # torch.nn.ReLU(),
-            # torch.nn.MaxPool2d(2, 2),  # [128,32,32]
+        # Use padding to make the output of convolutional layer is multiple of 2,
+        # and the out_channels will be bigger with the deeper convolutional layer
+        # which will help network learn more deep and valid feature.
+        self.cnn_layers = torch.nn.Sequential(
+            torch.nn.Conv2d(
+                in_channels=3, out_channels=64, kernel_size=3, padding=1
+            ),  # [3,128,128] ->  [64,128,128]
+            torch.nn.BatchNorm2d(64),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2, 2),  #  [64,128,128] -> [64,64,64]
+            #
+            torch.nn.Conv2d(
+                in_channels=64, out_channels=128, kernel_size=3, padding=1
+            ),  # [64,64,64] -> [128,64,64]
+            torch.nn.BatchNorm2d(128),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2, 2),  #  [128,64,64] -> [128,32,32]
+            #
+            torch.nn.Conv2d(
+                in_channels=128, out_channels=256, kernel_size=3, padding=1
+            ),  # [128,32,32] -> [256,32,32]
+            torch.nn.BatchNorm2d(256),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2, 2),  # [256,32,32] -> [256,16,16]
+            #
+            torch.nn.Conv2d(
+                in_channels=256, out_channels=512, kernel_size=3, padding=1
+            ),  # [256,16,16] -> [512,16,16]
+            torch.nn.BatchNorm2d(512),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2, 2),  # [512,16,16] -> [512,8,8]
+            #
+            torch.nn.Conv2d(
+                in_channels=512, out_channels=512, kernel_size=3, padding=1
+            ),  # [512,8,8] -> [512,8,8]
+            torch.nn.BatchNorm2d(512),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2, 2),  # [512,8,8] -> [512,4,4]
         )
 
-    # def forward(self, x):
-    #     # return self.layers(x)
+        # Input 512*4*4 feature from CNN to fully connected network
+        # There are 11 categories in total
+        self.fc = torch.nn.Sequential(
+            torch.nn.Linear(512 * 4 * 4, 1024),
+            torch.nn.ReLU(),
+            torch.nn.Linear(1024, 512),
+            torch.nn.ReLU(),
+            torch.nn.Linear(512, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 64),
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, 11),
+        )
+
+    # x is tensor and its size:[3,128,128]
+    def forward(self, x):
+        cnn_output = self.cnn_layers(x)
+        # print(f"cnn_output.size:{cnn_output.size()}")
+        # Flatten 512*4*4 into a one-dim tensor and send it to fc network
+        # [batch_size, 512*4*4]
+        flatten_cnn_output = cnn_output.view(cnn_output.size()[0], 512 * 4 * 4)
+        # print(f"flatten_cnn_output.size:{flatten_cnn_output.size()}")
+        return self.fc(flatten_cnn_output)
 
 
 def get_train_and_val_ld():
@@ -121,6 +164,76 @@ def train_model(train_loader, validation_loader):
         device = "cuda"
     else:
         device = "cpu"
+    model = ImgClassifierModel().to(device)
+    loss_func = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(
+        model.parameters(),
+        lr=config["learning_rate"],
+        momentum=0.95,
+        weight_decay=0.001,
+    )
+    # cos退火
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=8, T_mult=2, eta_min=config["learning_rate"] / 2
+    )
+
+    n_epoch = config["n_epochs"]
+    loss_record = {"train": [], "validation": []}
+    best_acc = 0.0
+    bad_acc_cnt = 0
+    for epoch in range(n_epoch):
+        # train
+        model.train()
+        each_epoch_loss_record = []
+        for x, y in train_loader:
+            optimizer.zero_grad()
+            x = x.to(device)
+            y = y.to(device)
+            # finish forward，计算偏导
+            predicted_res = model(x)
+            # 输入类型: tensor
+            loss_res = loss_func(predicted_res, y)
+            # backpropagation，计算偏导
+            loss_res.backward()
+            # 按照参数更新算法(例如gradient descent), 更新参数weights and bias
+            optimizer.step()
+            each_epoch_loss_record.append(loss_res.detach().cpu().item())
+        loss_record["train"].append(
+            sum(each_epoch_loss_record) / len(each_epoch_loss_record)
+        )
+        scheduler.step()
+
+        model.eval()
+        each_epoch_loss_record = []
+        eval_acc = []
+        for x, y in validation_loader:
+            x = x.to(device)
+            y = y.to(device)
+            with torch.no_grad():
+                predicted_res = model(x)
+                loss_res = loss_func(predicted_res, y)
+                each_epoch_loss_record.append(loss_res.detach().cpu().item())
+                _, test_pred = torch.max(predicted_res, 1)
+                eval_acc.append(
+                    (test_pred.detach() == y.detach()).sum().item() / len(test_pred)
+                )
+        validation_mean_loss = sum(each_epoch_loss_record) / len(each_epoch_loss_record)
+        validation_mean_acc = sum(eval_acc) / len(eval_acc)
+        print(
+            f"epoch:{epoch},validation_mean_loss:{validation_mean_loss},validation_mean_acc:{validation_mean_acc}"
+        )
+        loss_record["validation"].append(validation_mean_loss)
+
+        if validation_mean_acc > best_acc:
+            best_acc = validation_mean_acc
+            torch.save(model.state_dict(), config["model_save_path"])
+            bad_acc_cnt = 0
+        else:
+            bad_acc_cnt += 1
+        if bad_acc_cnt >= config["stop_train_count"]:
+            print("break")
+            break
+    return loss_record
 
 
 def train():

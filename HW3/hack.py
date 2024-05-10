@@ -17,6 +17,19 @@ from torchvision.datasets import ImageFolder
 from PIL import Image
 import torchvision.transforms as transforms
 
+ts1 = torch.tensor([1, 2, 3])
+ts2 = torch.tensor([1, 2, 4])
+print((ts1 == ts2).sum().item())
+
+# a = 1
+# b = 1.0
+# print(type(a))
+# print(type(b))
+
+# ts = torch.randn(4, 4)
+# print(f"ts:{ts},ts.size():{ts.size()}")
+# new_ts = ts.view(ts.size()[0], -1)
+# print(f"new_ts:{new_ts},new_ts.size:{new_ts.size()}")
 
 # """Plot learning curve of your DNN (train & validation loss)"""
 # x_1 = range(0, 5)
