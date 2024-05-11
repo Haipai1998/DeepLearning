@@ -16,14 +16,19 @@ import torch.optim.lr_scheduler as lr_scheduler
 from torchvision.datasets import ImageFolder
 from PIL import Image
 import torchvision.transforms as transforms
+import train
 
-aa = []
-a = torch.tensor([1, 2, 3])
-b = torch.tensor([4, 5, 6])
-aa.append(b)
-aa.append(a)
-print(aa)
-print(sum(aa) / len(aa))
+model = train.ImgClassifierModel().to("cuda")
+ckpt = torch.load("d", map_location="cpu")
+model.load_state_dict(ckpt)
+
+# aa = []
+# a = torch.tensor([1, 2, 3])
+# b = torch.tensor([4, 5, 6])
+# aa.append(b)
+# aa.append(a)
+# print(aa)
+# print(sum(aa) / len(aa))
 
 # ts1 = torch.tensor([1, 2, 3])
 # ts2 = torch.tensor([1, 2, 4])

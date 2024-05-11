@@ -16,8 +16,10 @@ import torch.optim.lr_scheduler as lr_scheduler
 from torchvision.datasets import ImageFolder
 from PIL import Image
 import torchvision.transforms as transforms
+import ttach
 
 # torch.nn.Conv2d()
+args = None
 
 config = {
     "train_data_root_path": "HW3/train/",
@@ -26,7 +28,7 @@ config = {
     "model_save_path": "HW3/model.pth",
     "validation_ratio": 0.2,
     "seed": 1998,
-    "batch_size": 512,
+    "batch_size": 64,
     "learning_rate": 1e-4,
     "n_epochs": 500,
     "stop_train_count": 100,
@@ -143,10 +145,18 @@ def get_train_and_val_ld():
     )
     print(f"train_ds:{len(train_ds)}")
 
-    # !!! fk error !!!, we shouldn't use train_img_transformer for validation set.
-    # TODO: should we need to fix it? let's see the inference accuracy!
+    val_transformer = transforms.Compose(
+        [
+            # Resize the image into a fixed shape (height = width = 128)
+            transforms.Resize((128, 128)),
+            transforms.ToTensor(),
+        ]
+    )
+    # TODO: we shouldn't use train_img_transformer for validation set.
+    # The model is training 12hours, but the accuracy is only 0.64(simple baseline),
+    # it demonstrate we need use right tsm for validation
     val_ds = ImgClassifierDataSet(
-        config["val_data_root_path"], train_img_transformer, "train"
+        config["val_data_root_path"], val_transformer, "train"
     )
     val_loader = torch.utils.data.DataLoader(
         val_ds,
@@ -154,7 +164,7 @@ def get_train_and_val_ld():
         shuffle=True,
         pin_memory=True,
     )
-    print(f"val_ds:{len(val_ds)}")
+    print(f"val_loader.dataset:{len(val_loader.dataset)}")
     return train_loader, val_loader
 
 
@@ -164,6 +174,15 @@ def train_model(train_loader, validation_loader):
     else:
         device = "cpu"
     model = ImgClassifierModel().to(device)
+    if args.load_model_to_train == "true":
+        try:
+            model = ImgClassifierModel().to(device)
+            ckpt = torch.load(config["model_save_path"], map_location="cpu")
+            model.load_state_dict(ckpt)
+            print("Use local model")
+        except FileNotFoundError:
+            print("No local model")
+
     loss_func = torch.nn.CrossEntropyLoss()
     # optimizer = torch.optim.SGD(
     #     model.parameters(),
@@ -172,7 +191,7 @@ def train_model(train_loader, validation_loader):
     #     weight_decay=0.001,
     # )
     optimizer = torch.optim.AdamW(
-        model.parameters(), lr=config["learning_rate"], weight_decay=0.08
+        model.parameters(), lr=config["learning_rate"], weight_decay=1e-5
     )
     # cos退火
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
@@ -216,11 +235,9 @@ def train_model(train_loader, validation_loader):
                 loss_res = loss_func(predicted_res, y)
                 each_epoch_loss_record.append(loss_res.detach().cpu().item())
                 _, test_pred = torch.max(predicted_res, 1)
-                eval_acc.append(
-                    (test_pred.detach() == y.detach()).sum().item() / len(test_pred)
-                )
+                eval_acc.append((test_pred.detach() == y.detach()).sum().item())
         validation_mean_loss = sum(each_epoch_loss_record) / len(each_epoch_loss_record)
-        validation_mean_acc = sum(eval_acc) / len(eval_acc)
+        validation_mean_acc = sum(eval_acc) / len(validation_loader.dataset)
         print(
             f"epoch:{epoch},validation_mean_loss:{validation_mean_loss},validation_mean_acc:{validation_mean_acc}"
         )
@@ -274,7 +291,7 @@ def save_pred(preds, file):
     print("Saving results to {}".format(file))
     with open(file, "w", newline="") as fp:
         writer = csv.writer(fp)
-        writer.writerow(["Id", "Class"])
+        writer.writerow(["Id", "Category"])
         for i, p in enumerate(preds):
             writer.writerow([i, p])
 
@@ -307,9 +324,14 @@ def inference():
     ckpt = torch.load(config["model_save_path"], map_location="cpu")
     model.load_state_dict(ckpt)
 
+    # multi inference
+    model = ttach.ClassificationTTAWrapper(
+        model, transforms=ttach.aliases.d4_transform(), merge_mode="mean"
+    )
+
     model.eval()
     preds = []
-    # 研究model(x)的输出: [batch_size * model_output_dimension]
+    # 研究model(x)的输出: [batch_size, model_output_dimension]
     for x in tqdm.tqdm(test_loader):
         x = x.to(device)
         # print(f"len(x):{len(x)}")
@@ -325,17 +347,21 @@ def inference():
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description="Train Or Inference")
-    # parser.add_argument("--train", action="store_true", help="Perform model training")
-    args = parser.parse_args()
-
-    confirmation = input(
-        "Are you sure you want to perform model training? This will overwrite existing model. (train/inf): "
+    parser = argparse.ArgumentParser(description="hack")
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["train", "inference"],
+        required=True,
+        help="Mode: 'train' or 'inference'",
     )
-    if confirmation.lower() == "train":
+    parser.add_argument(
+        "--load_model_to_train",
+        type=str,
+        choices=["true", "false"],
+    )
+    args = parser.parse_args()
+    if args.mode == "train":
         train()
-    elif confirmation.lower() == "inf":
+    elif args.mode == "inference":
         inference()
-    else:
-        print("Error op.")
