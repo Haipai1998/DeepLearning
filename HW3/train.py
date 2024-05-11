@@ -245,6 +245,7 @@ def train_model(train_loader, validation_loader):
 
         if validation_mean_acc > best_acc:
             best_acc = validation_mean_acc
+            # checkpoint = {"model_state_dict": model.state_dict()}
             torch.save(model.state_dict(), config["model_save_path"])
             bad_acc_cnt = 0
         else:
