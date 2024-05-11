@@ -22,6 +22,7 @@ import torchvision.transforms as transforms
 config = {
     "train_data_root_path": "HW3/train/",
     "val_data_root_path": "HW3/valid/",
+    "test_data_root_path": "HW3/test/",
     "model_save_path": "HW3/model.pth",
     "validation_ratio": 0.2,
     "seed": 1998,
@@ -105,11 +106,7 @@ class ImgClassifierModel(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(1024, 512),
             torch.nn.ReLU(),
-            torch.nn.Linear(512, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, 11),
+            torch.nn.Linear(512, 11),
         )
 
     # x is tensor and its size:[3,128,128]
@@ -146,6 +143,8 @@ def get_train_and_val_ld():
     )
     print(f"train_ds:{len(train_ds)}")
 
+    # !!! fk error !!!, we shouldn't use train_img_transformer for validation set.
+    # TODO: should we need to fix it? let's see the inference accuracy!
     val_ds = ImgClassifierDataSet(
         config["val_data_root_path"], train_img_transformer, "train"
     )
@@ -166,16 +165,19 @@ def train_model(train_loader, validation_loader):
         device = "cpu"
     model = ImgClassifierModel().to(device)
     loss_func = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(
-        model.parameters(),
-        lr=config["learning_rate"],
-        momentum=0.95,
-        weight_decay=0.001,
+    # optimizer = torch.optim.SGD(
+    #     model.parameters(),
+    #     lr=config["learning_rate"],
+    #     momentum=0.95,
+    #     weight_decay=0.001,
+    # )
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=config["learning_rate"], weight_decay=0.08
     )
     # cos退火
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-        optimizer, T_0=8, T_mult=2, eta_min=config["learning_rate"] / 2
-    )
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+    #     optimizer, T_0=8, T_mult=2, eta_min=config["learning_rate"] / 2
+    # )
 
     n_epoch = config["n_epochs"]
     loss_record = {"train": [], "validation": []}
@@ -201,7 +203,7 @@ def train_model(train_loader, validation_loader):
         loss_record["train"].append(
             sum(each_epoch_loss_record) / len(each_epoch_loss_record)
         )
-        scheduler.step()
+        # scheduler.step()
 
         model.eval()
         each_epoch_loss_record = []
@@ -267,5 +269,73 @@ def plot_learning_curve(loss_record, title=""):
     plt.show()
 
 
+def save_pred(preds, file):
+    """Save predictions to specified file"""
+    print("Saving results to {}".format(file))
+    with open(file, "w", newline="") as fp:
+        writer = csv.writer(fp)
+        writer.writerow(["Id", "Class"])
+        for i, p in enumerate(preds):
+            writer.writerow([i, p])
+
+
+def inference():
+    test_transformer = transforms.Compose(
+        [
+            # Resize the image into a fixed shape (height = width = 128)
+            transforms.Resize((128, 128)),
+            transforms.ToTensor(),
+        ]
+    )
+
+    test_ds = ImgClassifierDataSet(
+        config["test_data_root_path"], test_transformer, "test"
+    )
+    test_loader = torch.utils.data.DataLoader(
+        test_ds,
+        batch_size=config["batch_size"],
+        shuffle=False,
+        pin_memory=True,
+    )
+    print(f"test_ds:{len(test_ds)}")
+
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+    model = ImgClassifierModel().to(device)
+    ckpt = torch.load(config["model_save_path"], map_location="cpu")
+    model.load_state_dict(ckpt)
+
+    model.eval()
+    preds = []
+    # 研究model(x)的输出: [batch_size * model_output_dimension]
+    for x in tqdm.tqdm(test_loader):
+        x = x.to(device)
+        # print(f"len(x):{len(x)}")
+        with torch.no_grad():
+            pred = model(x)
+            # print(f"len(pred):{len(pred)}")
+            _, test_pred = torch.max(pred, 1)
+            preds.append(test_pred.detach().cpu())
+
+    preds = torch.cat(preds, dim=0).numpy()
+    print(len(preds))
+    save_pred(preds, "HW3/pred1.csv")
+
+
 if __name__ == "__main__":
-    train()
+
+    parser = argparse.ArgumentParser(description="Train Or Inference")
+    # parser.add_argument("--train", action="store_true", help="Perform model training")
+    args = parser.parse_args()
+
+    confirmation = input(
+        "Are you sure you want to perform model training? This will overwrite existing model. (train/inf): "
+    )
+    if confirmation.lower() == "train":
+        train()
+    elif confirmation.lower() == "inf":
+        inference()
+    else:
+        print("Error op.")

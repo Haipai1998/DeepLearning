@@ -17,9 +17,17 @@ from torchvision.datasets import ImageFolder
 from PIL import Image
 import torchvision.transforms as transforms
 
-ts1 = torch.tensor([1, 2, 3])
-ts2 = torch.tensor([1, 2, 4])
-print((ts1 == ts2).sum().item())
+aa = []
+a = torch.tensor([1, 2, 3])
+b = torch.tensor([4, 5, 6])
+aa.append(b)
+aa.append(a)
+print(aa)
+print(sum(aa) / len(aa))
+
+# ts1 = torch.tensor([1, 2, 3])
+# ts2 = torch.tensor([1, 2, 4])
+# print((ts1 == ts2).sum().item())
 
 # a = 1
 # b = 1.0
