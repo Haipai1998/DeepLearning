@@ -200,7 +200,7 @@ def train_model(train_loader, validation_loader):
 
     n_epoch = config["n_epochs"]
     loss_record = {"train": [], "validation": []}
-    best_acc = 0.0
+    best_acc = 0.6
     bad_acc_cnt = 0
     for epoch in range(n_epoch):
         # train
