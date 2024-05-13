@@ -1,6 +1,11 @@
 Use local pytorch to train instead of using colab which is not easy to debug and code
 
 学习资料: https://speech.ee.ntu.edu.tw/~hylee/ml/2023-spring.php
+
+待解锁:
+1. OPTUNA调参：https://optuna.readthedocs.io/zh-cn/latest/index.html
+2. 
+
 ## HW1
 #### 目标问题分析
 回归问题：直接给出特征，要求预测一个scaler
@@ -57,7 +62,8 @@ torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1)
 # padding: 上下左右各补几个像素
 ```
 ![alt text](image-1.png)
-随着convolutional layers的加深，输出的channel越多，抽取的特征越多。最后一层卷积层输出FeatureMaps，将FM拍扁成一维张量送到FC进行分类训练
+1. 随着convolutional layers的加深，输出的channel越多，抽取的特征越多。最后一层卷积层输出FeatureMaps，将FM拍扁成一维张量送到FC进行分类训练
+2. 因为一次性载入所有数据不可行，因此只在Dataset.getitem方法里真正读取数据去训练
 #### 新优化方法
 1. 池化pooing：对于输出的结果，以2*2为单位抽出一个代表，可用mean or max
 2. transforms.Compose: 对训练集图像进行灰度、亮度、旋转等操作，最后转成张量用于训练，可增强模型的泛化能力和准确性。注意，验证集不需要该操作
