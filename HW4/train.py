@@ -39,7 +39,11 @@ def open_json_file(json_data_path):
         return json_file
 
 
-torch.nn.TransformerEncoder
+# From Class Transform comments
+#  - src: :math:`(S, E)` for unbatched input, :math:`(S, N, E)` if `batch_first=False` or
+#               `(N, S, E)` if `batch_first=True`.
+torch.nn.TransformerEncoderLayer()
+torch.nn.Transformer()
 
 # class SpeakerClassifierModel(torch.nn.Module):
 #     def
