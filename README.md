@@ -20,7 +20,7 @@ Use local pytorch to train instead of using colab which is not easy to debug and
 #### python/pytorch语法
 1. squeeze可以去掉某个维度，0维代表行，1维代表列
 2. training/validation data need to shuffel, testing not need
-3. torch.cat()可以根据维度来合并张量，最后通过.numpy转化成write_row所需的输出类型
+3. torch.cat(preds, dim=0).numpy()可以根据维度来合并张量，最后通过.numpy转化成write_row所需的输出类型
 #### 跑分结果
 Near strong baseline
 
@@ -45,7 +45,7 @@ fc layer + activation function + bn + dropout
    2. line = line.strip().split(" ")去掉首尾换行，以空格为分割符
 
 #### 跑分结果
-during simple baselin and medium baseline
+between simple baseline and medium baseline
 
 ## HW3 
 #### 目标问题分析
