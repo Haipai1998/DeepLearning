@@ -1,5 +1,6 @@
 Use local pytorch to train instead of using colab which is not easy to debug and code
-资料连接: https://speech.ee.ntu.edu.tw/~hylee/ml/2023-spring.php
+
+学习资料: https://speech.ee.ntu.edu.tw/~hylee/ml/2023-spring.php
 ## HW1
 #### 目标问题分析
 回归问题：直接给出特征，要求预测一个scaler
