@@ -19,8 +19,6 @@ Use local pytorch to train instead of using colab which is not easy to debug and
 #### 跑分结果和收获
 Near strong baseline
 
----
-
 ## HW2 
 #### 目标问题分析
 
