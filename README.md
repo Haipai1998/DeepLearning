@@ -101,14 +101,56 @@ medium baseline
 
 ## HW4
 #### 目标问题分析
+语音识别分类问题：输入是mel对应音频数据，要求输出该音频对应的人名
 
 #### 模型搭建过程
-
+预处理层→使用self-attention layer抽取特征→fc layer预测结果
 #### 新优化方法
 
 
 #### python/pytorch语法
-
+1. Dataset是抽象基类，基类没有__init__方法定义;派生于nn.Module一定需要定义__init__ function
+2. tqdm.tqdm(train_data["speakers"], desc="Processing init data")加个注释方便观察进度
+3. 读取json文件：
+   ```python
+    with open(json_data_path, "r") as f:
+        json_file = json.load(f)
+        return json_file
+   ```
+4. DataLoader的批处理需要每个元素的各个维度相同
+   ```python
+    train_data_ld = torch.utils.data.DataLoader(
+        dataset=train_data_set,
+        batch_size=config["batch_size"],
+        shuffle=True,
+        pin_memory=True,
+        collate_fn=SpeakerDataset.train_collate_batch,
+    )
+    def train_collate_batch(batch):
+        mels, lables = zip(*batch)
+        mels = torch.nn.utils.rnn.pad_sequence(
+            sequences=mels, batch_first=True, padding_value=0
+        )
+        return mels, torch.tensor(lables, dtype=int)
+   ```
+5. 保存模型时，使用pkl file保存best_acc用于重载模型训练
+   ```python
+    # load
+    if args.load_model_to_train == "true":
+        try:
+            model = SpeakerClassifierModel().to(device)
+            ckpt = torch.load(config["model_save_path"], map_location="cpu")
+            model.load_state_dict(ckpt)
+            with open("HW4/best_accuracy.pkl", "rb") as f:
+                best_acc = pickle.load(f)
+            print(f"Use local model, best_acc:{best_acc}")
+        except FileNotFoundError:
+            print("No local model")
+    # save
+    with open("HW4/best_accuracy.pkl", "wb") as f:
+                pickle.dump(best_acc, f)
+            torch.save(model.state_dict(), config["model_save_path"])
+   ```
 #### 跑分结果
 ![alt text](HW4/boss_baseline.png)
 
