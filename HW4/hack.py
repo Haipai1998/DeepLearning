@@ -19,22 +19,26 @@ import torchvision.transforms as transforms
 import ttach
 
 import torch
-from torch.nn.utils.rnn import pad_sequence
+import pickle
 
-import torch
-from torch.nn.utils.rnn import pad_sequence
+# 假设best_accuracy是你的最佳准确度值
+best_accuracy = 0.8  # 举例
 
-batch_sequences = [
-    torch.tensor([[1, 2, 3]]),
-    torch.tensor([[4, 5]]),
-    torch.tensor([[6, 7, 8, 9]]),
-]
+# 保存最佳准确度到文件
+with open("best_accuracy.pkl", "wb") as f:
+    pickle.dump(best_accuracy, f)
 
-# 对齐序列
-padded_sequences = pad_sequence(batch_sequences, batch_first=True)
+# 加载最佳准确度
+with open("best_accuracy.pkl", "rb") as f:
+    loaded_best_accuracy = pickle.load(f)
 
-print(padded_sequences)
+print("Loaded best accuracy:", loaded_best_accuracy)
 
+
+# layer = torch.nn.Linear(40, 128)
+# ts = torch.rand(3, 60, 40)
+# res = layer(ts)
+# print(res.size())
 
 # 假设你有一批输入序列
 # batch_sequences = [

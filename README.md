@@ -4,7 +4,7 @@ Use local pytorch to train instead of using colab which is not easy to debug and
 
 待解锁:
 1. OPTUNA调参：https://optuna.readthedocs.io/zh-cn/latest/index.html
-2. 
+2. bn1d bn2d 区别？
 
 ## HW1
 #### 目标问题分析
