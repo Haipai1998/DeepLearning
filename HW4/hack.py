@@ -21,18 +21,29 @@ import ttach
 import torch
 import pickle
 
-# 假设best_accuracy是你的最佳准确度值
-best_accuracy = 0.8  # 举例
+import csv
 
-# 保存最佳准确度到文件
-with open("best_accuracy.pkl", "wb") as f:
-    pickle.dump(best_accuracy, f)
+# 假设你有一个包含字符的列表
+my_list = ["apple", "banana", "orange", "grape"]
 
-# 加载最佳准确度
-with open("best_accuracy.pkl", "rb") as f:
-    loaded_best_accuracy = pickle.load(f)
+# 将列表中的字符写入CSV文件
+with open("output.csv", "w", newline="") as file:
+    writer = csv.writer(file)
+    writer.writerow(my_list)
 
-print("Loaded best accuracy:", loaded_best_accuracy)
+
+# # 假设best_accuracy是你的最佳准确度值
+# best_accuracy = 0.8  # 举例
+
+# # 保存最佳准确度到文件
+# # with open("best_accuracy.pkl", "wb") as f:
+# #     pickle.dump(best_accuracy, f)
+
+# # 加载最佳准确度
+# with open("HW4/best_accuracy.pkl", "rb") as f:
+#     loaded_best_accuracy = pickle.load(f)
+
+# print("Loaded best accuracy:", loaded_best_accuracy)
 
 
 # layer = torch.nn.Linear(40, 128)

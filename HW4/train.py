@@ -81,10 +81,13 @@ class SpeakerClassifierModel(torch.nn.Module):
         )
 
     def forward(self, x):
+        # print(f"x.size:{x.size()}")
         # [batch_size, seq_max_len, 40] -> [batch_size, seq_max_len, 128]
         pre_layer_output = self.pre_layer(x)
+        # print(f"pre_layer_output.size:{pre_layer_output.size()}")
         # [batch_size, seq_max_len, 128] -> [batch_size, seq_max_len, 128]
         encoder_layer_output = self.encoder_layer(pre_layer_output)
+        # print(f"encoder_layer_output.size:{encoder_layer_output.size()}")
 
         # 在音频任务中，通常会沿着时间维度进行池化而不是特征维度上的池化。
         # 这是因为音频数据通常是时间序列数据，其关键信息往往分布在时间轴上，
@@ -93,6 +96,9 @@ class SpeakerClassifierModel(torch.nn.Module):
         # 维度上的池化。
         # [batch_size, seq_max_len, 128] -> [batch_size, 128]
         encoder_layer_output_mean_pooling = encoder_layer_output.mean(dim=1)
+        # print(
+        #     f"encoder_layer_output_mean_pooling.size:{encoder_layer_output_mean_pooling.size()}"
+        # )
         # [batch_size, 128]-> [batch_size, 600]
         return self.predict_layer(encoder_layer_output_mean_pooling)
 
@@ -117,7 +123,12 @@ class SpeakerDataset(torch.utils.data.Dataset):
                     )
                     # print(feature_tensor.size())
                     # print(f"feature_name:{feature_name},id_to_class:{id_to_class}")
-        # elif mode == "inference":
+        elif mode == "inference":
+            test_data = open_json_file(json_data_path)
+            for utterance in test_data["utterances"]:
+                feature_name, mel_len = utterance["feature_path"], utterance["mel_len"]
+                # print(f"feature_name:{feature_name},mel_len:{mel_len}")
+                self.data.append(feature_name)
 
     def __len__(self):
         return len(self.data)
@@ -140,6 +151,12 @@ class SpeakerDataset(torch.utils.data.Dataset):
             )
             # [undefined, 40]
             return feature_tensor, id_to_class
+        elif self.mode == "inference":
+            feature_name = self.data[index]
+            feature_tensor = torch.load(os.path.join("HW4/Dataset", feature_name))
+            # print(f"inf::feature_tensor:size:{feature_tensor.size()}")
+            return feature_name, feature_tensor
+            # inference不需要cut
 
     # 每个sample各个维度都要等长
     def train_collate_batch(batch):
@@ -196,7 +213,7 @@ def train_model(train_loader, validation_loader):
             model = SpeakerClassifierModel().to(device)
             ckpt = torch.load(config["model_save_path"], map_location="cpu")
             model.load_state_dict(ckpt)
-            with open("best_accuracy.pkl", "rb") as f:
+            with open("HW4/best_accuracy.pkl", "rb") as f:
                 best_acc = pickle.load(f)
             print(f"Use local model, best_acc:{best_acc}")
         except FileNotFoundError:
@@ -294,7 +311,56 @@ def train():
 
 
 def inference():
-    test_ds = SpeakerDataset("inference", "HW4/Dataset/testdata.json")
+    mapping_file = open_json_file("HW4/Dataset/mapping.json")
+    test_ds = SpeakerDataset("inference", "HW4/Dataset/testdata.json", mapping_file)
+    test_loader = torch.utils.data.DataLoader(
+        test_ds,
+        batch_size=1,
+        shuffle=False,
+        pin_memory=True,
+    )
+    print(f"test_ds:{len(test_ds)}")
+
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+
+    model = SpeakerClassifierModel().to(device)
+    ckpt = torch.load(config["model_save_path"], map_location="cpu")
+    model.load_state_dict(ckpt)
+
+    feature_names = []
+    preds = []
+    model.eval()
+    for feature_name, x in tqdm.tqdm(test_loader):
+        # print(f"x.size():{x.size()}")
+        x = x.to(device)
+        feature_names.append(feature_name)
+        # print(
+        #     f"type(feature_name):{type(feature_name)},len(feature_name):{len(feature_name)}"
+        # )
+
+        with torch.no_grad():
+            pred = model(x)
+            _, test_pred = torch.max(pred, 1)
+            preds.append(test_pred.detach().cpu())
+            # break
+    preds = torch.cat(preds, dim=0).numpy()
+    print(len(preds))
+    assert len(preds) == len(feature_names)
+    save_pred(preds, feature_names, "HW4/pred.csv", mapping_file)
+
+
+def save_pred(preds, feature_names, file, mapping_file):
+    """Save predictions to specified file"""
+    print("Saving results to {}".format(file))
+    with open(file, "w", newline="") as fp:
+        writer = csv.writer(fp)
+        writer.writerow(["Id", "Category"])
+        for i, p in enumerate(preds):
+            p = mapping_file["id2speaker"][str(p)]
+            writer.writerow([feature_names[i][0], p])
 
 
 if __name__ == "__main__":

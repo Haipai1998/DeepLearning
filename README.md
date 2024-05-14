@@ -15,7 +15,7 @@ Use local pytorch to train instead of using colab which is not easy to debug and
 1. bn:均匀化每个layer的input，避免个别feature对output影响过大
 2. dropout:依概率丢掉一些结果，避免过拟合
 3. 加大epoch次数
-4. L2 regularization: ![alt text](image.png)
+4. L2 regularization: ![alt text](HW1/image.png)
    ```python
    # weight_decay is \lamda
     optimizer = torch.optim.AdamW(
@@ -61,7 +61,7 @@ between simple baseline and medium baseline
 torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1)
 # padding: 上下左右各补几个像素
 ```
-![alt text](image-1.png)
+![alt text](HW3/image-1.png)
 1. 随着convolutional layers的加深，输出的channel越多，抽取的特征越多。最后一层卷积层输出FeatureMaps，将FM拍扁成一维张量送到FC进行分类训练
 2. 因为一次性载入所有数据不可行，因此只在Dataset.getitem方法里真正读取数据去训练
 #### 新优化方法
@@ -98,6 +98,19 @@ if __name__ == "__main__":
 ```
 #### 跑分结果
 medium baseline
+
+## HW4
+#### 目标问题分析
+
+#### 模型搭建过程
+
+#### 新优化方法
+
+
+#### python/pytorch语法
+
+#### 跑分结果
+![alt text](HW4/boss_baseline.png)
 
 <!-- 
 ## HW? 
