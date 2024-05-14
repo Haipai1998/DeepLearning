@@ -107,6 +107,7 @@ medium baseline
 预处理层→使用self-attention layer抽取特征→fc layer预测结果
 #### 新优化方法
 
+目前使用self-attention已经可以达到strong baseline, 关于conformer:Encoderlayer's Multi-head self attention输出在transformer里是直接送进feed-forward layer, 而在conformer里，在两者间加了一层convolutional layer用于学习局部信息
 
 #### python/pytorch语法
 1. Dataset是抽象基类，基类没有__init__方法定义;派生于nn.Module一定需要定义__init__ function
