@@ -158,7 +158,7 @@ medium baseline
 ## 训练模型代码框架总结
 命令行模块：根据不同的命令，执行train or inference
 #### 训练Train
-   1. 数据预处理：加载训练数据→ random → 特征提取 → 以array形式将数据返回
+   1. 数据预处理：加载训练数据 → random → 特征提取 → 以array形式将数据返回
    2. Train/Validation DataSet：定义__init__(), __getitem__(), __len__()。如果数据太大，__getitem()处才会真实加载数据
    3. DataLoader：将MyDataSet放进DataLoader以支持批操作，shuffle
    4. 加载/创建模型：ckpt/初始化
