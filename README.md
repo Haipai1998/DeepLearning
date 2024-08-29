@@ -3,8 +3,7 @@ Use local pytorch to train instead of using colab which is not easy to debug and
 学习资料: https://speech.ee.ntu.edu.tw/~hylee/ml/2023-spring.php
 
 待解锁:
-1. OPTUNA调参：https://optuna.readthedocs.io/zh-cn/latest/index.html
-2. bn1d bn2d 区别？
+1. bn1d bn2d 区别？
 
 ## HW1
 #### 目标问题分析
@@ -155,6 +154,21 @@ medium baseline
 #### 跑分结果
 ![alt text](HW4/boss_baseline.png)
 
+
+## 训练模型代码框架总结
+命令行模块：根据不同的命令，执行train or inference
+#### 训练Train
+   1. 数据预处理：加载训练数据→ random → 特征提取 → 以array形式将数据返回
+   2. Train/Validation DataSet：定义__init__(), __getitem__(), __len__()。如果数据太大，__getitem()处才会真实加载数据
+   3. DataLoader：将MyDataSet放进DataLoader以支持批操作，shuffle
+   4. 加载/创建模型：ckpt/初始化
+   5. 训练（每次epoch）：每批次数据训练时，清空前一次的梯度值，计算损失结果和梯度，反向传播，更新权重和偏置值
+   6. 验证（每次epoch）：每批次数据训练时， with torch.no_grad()
+#### 推理Inference
+  1. 数据预处理：加载推理数据
+  2. 加载模型：ckpt
+  3. 推理：类似验证的过程，做计算
+  4. 若是图片分类推理，可以采用TTA对图片进行编辑旋转后再测试求个平均值
 <!-- 
 ## HW? 
 #### 目标问题分析

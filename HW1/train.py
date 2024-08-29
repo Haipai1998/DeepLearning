@@ -139,7 +139,7 @@ def trainer(dimension, train_loader, validation_loader):
             predicted_res = model(x)
             # 输入类型: tensor
             loss_res = loss_func(predicted_res, y)
-            # backpropagation，计算偏导
+            # backpropagation，计算偏导，反向传播backpropagation
             loss_res.backward()
             # 按照参数更新算法(例如gradient descent), 更新参数weights and bias
             optimizer.step()
